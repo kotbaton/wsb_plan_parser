@@ -110,22 +110,24 @@ END:VTIMEZONE
             for event in group_events:
                 rows.append(f"""<tr>
 <td>{event.dtstart.strftime('%d.%m.%Y')}</td>
-<td>{event.dtstart.strftime('%H:%M')}</td>
 <td>{DAY_MAP[event.dtstart.weekday()]}</td>
+<td>{event.dtstart.strftime('%H:%M')}</td>
 <td>{event.dtend.strftime('%H:%M')}</td>
 <td>{event.duration}</td>
 <td>{event.cumulative_hours}/{event.total_hours}</td>
+<td>...</td>
 </tr>""")
             table = f"""<strong>{escape(form)} - {escape(name)} - {escape(group)}</strong>
 <table border="1" cellpadding="5" cellspacing="0">
 <thead>
 <tr>
 <th>Data</th>
+<th>Dzień</th>
 <th>Początek</th>
 <th>Koniec</th>
-<th>Dzień</th>
 <th>Długość</th>
 <th>Godziny</th>
+<th>Temat zajęć</th>
 </tr>
 </thead>
 <tbody>
