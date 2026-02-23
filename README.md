@@ -103,7 +103,7 @@ Poniżej znajduje się instrukcja krok po kroku, jak wyeksportować plan zajęć
 
 ### 1. Wejście na stronę
 - Otwórz stronę: https://meritogo.pl  
-- **Nie loguj się jeszcze**
+- Jeżeli jesteś zalogowany, przejdź do kroku 2. Jeśli nie - na razie się nie loguj.
 
 ### 2. Otwórz narzędzia deweloperskie
 - Naciśnij `F12`
@@ -112,7 +112,7 @@ Poniżej znajduje się instrukcja krok po kroku, jak wyeksportować plan zajęć
 Zakładka Network pozwala śledzić zapytania (requesty) wysyłane do serwera.
 
 ### 3. Zaloguj się
-- Zaloguj się normalnie do systemu
+- Zaloguj się normalnie do systemu, lub jeśli masz już sesję, odśwież stronę (`F5`).
 - Po zalogowaniu pojawi się dużo requestów w zakładce Network
 
 ### 4. Znajdź zapytanie z planem
@@ -145,14 +145,14 @@ Jeżeli nie — szukaj dalej.
 
 ### 1. Wejście na stronę
 - Otwórz: https://meritogo.pl  
-- Nie loguj się jeszcze
+- Jeżeli jesteś zalogowany, przejdź do kroku 2. Jeśli nie - na razie się nie loguj.
 
 ### 2. Otwórz DevTools
 - Naciśnij `F12`
 - Przejdź do zakładki **Network**
 
 ### 3. Zaloguj się
-- Zaloguj się normalnie
+- Zaloguj się normalnie do systemu, lub jeśli masz już sesję, odśwież stronę (`F5`).
 - W Network pojawi się wiele requestów
 
 ### 4. Znajdź właściwy request
