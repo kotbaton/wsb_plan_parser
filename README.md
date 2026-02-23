@@ -8,8 +8,6 @@ Program służy do przetwarzania pliku `plan.json` (wyeksportowanego z Merito/WS
 - 📅 `plan.ics` – kalendarz do importu (Google Calendar, Outlook itp.)
 - 📊 `grupy.html` – raport godzin dla Moodle (z podsumowaniem godzin)
 
----
-
 ## Instalacja
 
 1. Sklonuj repozytorium:
@@ -40,8 +38,6 @@ cd nazwa_repozytorium
 
 Skrypt sprawdza, czy katalog `output` istnieje i w razie potrzeby go tworzy.
 
----
-
 ## Opis programu
 
 Krótki opis głównych plików w repozytorium:
@@ -50,8 +46,6 @@ Krótki opis głównych plików w repozytorium:
 - `event.py` — definicja klasy `Event`: reprezentuje pojedyncze zajęcia, oblicza długość w godzinach akademickich, przechowuje informacje pomocnicze oraz potrafi wygenerować wpisy CSV i ICS.
 - `schedule.py` — klasa `Schedule`: parsuje plik JSON z planem, tworzy listę obiektów `Event`, grupuje zajęcia według przedmiotu/grupy i udostępnia metody zapisu do plików (`save_to_csv`, `save_to_ics`, `groups_to_html`).
 - `plan_example.json` — przykładowy plik JSON (wzorzec) pokazujący oczekiwaną strukturę `plan.json` używaną przez skrypt.
-
----
 
 ## Opis generowanych plików
 
@@ -67,8 +61,6 @@ Zawiera:
 
 Można otworzyć w Excelu lub LibreOffice.
 
----
-
 ### 📅 plan.ics
 Plik do importu do kalendarza.
 Zawiera:
@@ -83,8 +75,6 @@ Można zaimportować do:
 - Google Calendar
 - Outlook
 - Apple Calendar
-
----
 
 ### 📊 grupy.html
 Raport godzin do wklejenia do Moodle.
@@ -105,13 +95,9 @@ Plik można:
 - otworzyć w przeglądarce
 - skopiować i wkleić do Moodle (tryb HTML)
 
----
-
 # Eksport planu z WSB (Merito)
 
 Poniżej znajduje się instrukcja krok po kroku, jak wyeksportować plan zajęć w formacie JSON z serwisu https://meritogo.pl.
-
----
 
 ## 🔵 Wersja dla Firefox
 
@@ -154,8 +140,6 @@ Jeżeli nie — szukaj dalej.
 - Nowy request pojawi się na końcu listy
 - W zakładce **Response** znajdziesz pełny plan w formacie JSON
 - Skopiuj dane do pliku i zapisz jako `plan.json` w folderze ze skryptem
-
----
 
 ## 🟢 Wersja dla Chromium / Chrome
 
@@ -215,8 +199,6 @@ Wymaga jednak ręcznego znalezienia **dwóch wartości** w zakładce Network:
 
 Działa w większości przypadków, ale token może wygasać (np. po wylogowaniu).
 
----
-
 ### Krok 1 – Zaloguj się i znajdź request
 
 1. Wejdź na https://meritogo.pl  
@@ -226,8 +208,6 @@ Działa w większości przypadków, ale token może wygasać (np. po wylogowaniu
 5. Znajdź request typu **GET**, którego adres zawiera `lecturer?dateFrom=`
 
 6. Kliknij ten request i przejdź do zakładki **Headers**
-
----
 
 ### Krok 2 – Skopiuj wymagane wartości
 
@@ -240,8 +220,6 @@ Skopiuj:
 
 - cały token po słowie `Bearer`
 - wartość `context-id`
-
----
 
 ### Krok 3 – Wstaw dane do polecenia curl
 
@@ -270,8 +248,6 @@ curl 'https://api.meritogo.pl/v2/class_schedule/v3/schedule/lecturer?dateFrom=20
   -H 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36' \
   -H 'x-timezone: Europe/Warsaw' > plan.json
 ```
-
----
 
 ### Krok 4 – Uruchom polecenie
 
