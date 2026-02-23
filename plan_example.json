@@ -1,0 +1,33 @@
+{
+	"date_from": "2026-02-28",
+	"date_to": "2026-10-31",
+	"events": [
+		{
+			"id": "placeholder",
+			"name": "Bardzo fajne zajęcia",
+			"description": null,
+			"start": "2026-02-28T07:00:00+00:00",
+			"end": "2026-02-28T12:00:00+00:00",
+			"timed": true,
+			"important": false,
+			"tooltip": null,
+			"categoryName": "CLASS_SCHEDULE",
+			"status": "planned",
+			"classFormShortName": "WY",
+			"localization": [],
+			"rooms": [],
+			"isOnline": true,
+			"groups": [
+				"Bardzo zdolna grupa"
+			],
+			"lecturers": [
+				{
+					"id": "placeholder",
+					"portalId": "placeholder",
+					"fullName": "Bardzo fajny wykładowca",
+					"isPresent": true
+				}
+			]
+		}
+	]
+}
