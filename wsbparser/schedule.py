@@ -3,18 +3,20 @@ import csv
 from datetime import datetime
 from collections import defaultdict
 from html import escape
+from pathlib import Path
 
-from event import Event, DAY_MAP
+from .event import Event, DAY_MAP
 
 class Schedule:
-    def __init__(self, file_path):
+    def __init__(self, lecturer, file_path):
+        self.lecturer = lecturer
         self.file_path = file_path
         try:
             with open(file_path) as f:
                 schedule_text = f.read()
                 plan_json = json.loads(schedule_text)
         except (FileNotFoundError, json.JSONDecodeError):
-            print('Plik plan.json nie został odnaleziony lub nie jest to plik JSON. Kończę pracę.')
+            print(f'Plik {file_path} nie został odnaleziony lub nie jest to plik JSON. Kończę pracę.')
             exit(1)
         self.events, self.groups = Schedule.json_to_events(plan_json)
 
@@ -60,13 +62,13 @@ class Schedule:
 
         return groups
 
-    def save_to_csv(self, filename="plan.csv"):
+    def save_to_csv(self, filename):
         with open(filename, mode="w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             writer.writerow(Event.csv_headers())
             writer.writerows([e.to_csv_entry() for e in self.events])
 
-    def save_to_ics(self, filename="plan.ics"):
+    def save_to_ics(self, filename):
         def format_dt(date_str, time_str):
             dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
             return dt.strftime("%Y%m%dT%H%M%S")
@@ -100,7 +102,7 @@ END:VTIMEZONE
 
             f.write("END:VCALENDAR\n")
 
-    def groups_to_html(self, filename="groups.html"):
+    def groups_to_html(self, filename):
         html_blocks = []
         # Sortujemy grupy po formie i nazwach grup
         for (form, name, group), group_events in self.groups.items():
@@ -140,3 +142,33 @@ END:VTIMEZONE
         res = "\n".join(html_blocks)
         with open(filename, "w", encoding="utf-8") as f:
             f.write(res)
+
+    def export_schedule(self, out_dir: Path) -> None:
+        if self.lecturer is not None:
+            login = self.lecturer.login()
+            basename = f"{login}_plan"
+        else:
+            basename = "plan"
+
+        csv_path = out_dir / f"{basename}.csv"
+        self.save_to_csv(str(csv_path))
+        if csv_path.exists():
+            print(f"Gotowe! Zapisano plik {csv_path}")
+        else:
+            raise RuntimeError(f"Plik '{csv_path}' nie został utworzony.")
+
+        # Zapis ICS
+        ics_path = out_dir / f"{basename}.ics"
+        self.save_to_ics(str(ics_path))
+        if ics_path.exists():
+            print(f"Gotowe! Zapisano plik {ics_path}")
+        else:
+            raise RuntimeError(f"Plik '{ics_path}' nie został utworzony.")
+
+        # Raport grup
+        html_path = out_dir / f"{basename}.html"
+        self.groups_to_html(html_path)
+        if html_path.exists():
+            print(f"Gotowe! Raport z liczby zajęć zapisano do {html_path}")
+        else:
+            raise RuntimeError(f"Plik '{html_path}' nie został utworzony przez schedule.groups_to_html().")

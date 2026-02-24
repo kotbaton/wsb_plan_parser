@@ -1,33 +1,98 @@
-from schedule import Schedule
 import sys
 import traceback
+from datetime import date, datetime, time
 from pathlib import Path
+import argparse
 
-OUTPUT_DIR = 'output'
+from wsbparser import Schedule, API, DateRange
 
-if __name__=='__main__':
-    # wybór pliku: najpierw argument CLI, jeśli istnieje; w przeciwnym razie 'plan.json'
-    if len(sys.argv) > 1:
-        arg_path = sys.argv[1]
-        if Path(arg_path).exists():
-            file_path = arg_path
-            print(f"Używam pliku: {file_path}")
-        else:
-            print(f"Plik podany jako argument ({arg_path}) nie istnieje — przełączam się na 'plan.json'.")
-            file_path = 'plan.json'
-    else:
-        file_path = 'plan.json'
+OUTPUT_DIR = "output"
 
-    # Wczytanie harmonogramu (Schedule może wypisać własne błędy)
+
+def _parse_iso_date(value: str) -> date:
+    """Parse date in YYYY-MM-DD format (argparse helper)."""
     try:
-        schedule = Schedule(file_path)
-        print('='*50, schedule.to_str(), '='*50, sep='\n\n')
-    except Exception as e:
-        print(f"Coś poszło nie tak podczas wczytywania harmonogramu z '{file_path}':", str(e))
-        traceback.print_exc()
-        sys.exit(1)
+        return date.fromisoformat(value)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(
+            f"Niepoprawny format daty '{value}'. Oczekiwany format: YYYY-MM-DD."
+        ) from e
 
-    # Informujemy o katalogu wyników i tworzymy go, jeśli nie istnieje
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="main.py",
+        description="Parser planu WSB: generuje CSV/ICS/HTML z pliku JSON.",
+        add_help=True,
+    )
+
+    # Template switches (to be extended later)
+    mx = parser.add_mutually_exclusive_group()
+    mx.add_argument(
+        "--list-lecturers",
+        action="store_true",
+        help="Wyświetla wszystkich dostępnych prowadzących i kończy działanie.",
+    )
+    mx.add_argument(
+        "--lecturer",
+        metavar='"NAME SURNAME"',
+        type=str,
+        help="Pobiera i rozparsowuje plan dla konkretnego prowadzącego.",
+    )
+    mx.add_argument(
+        "--lecturers",
+        metavar="FILE.txt",
+        type=str,
+        help="Pobiera i rozparsowuje plan dla prowadzących z pliku.",
+    )
+    mx.add_argument(
+        "--file",
+        dest="file",
+        metavar="PATH",
+        help="Ścieżka do pliku JSON z planem (np. plan.json).",
+        default=None,
+    )
+
+    parser.add_argument(
+        "--dstart",
+        metavar="YYYY-MM-DD",
+        type=_parse_iso_date,
+        help="Data od kiedy pobierać/analizować plan (opcjonalne).",
+        default=None,
+    )
+    parser.add_argument(
+        "--dend",
+        metavar="YYYY-MM-DD",
+        type=_parse_iso_date,
+        help="Data do kiedy pobierać/analizować plan (opcjonalne).",
+        default=None,
+    )
+
+    return parser
+
+
+def _validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    # If you provide date range, you must also choose a mode that uses it.
+    if (args.dstart is not None or args.dend is not None) and not (
+        args.list_lecturers or args.lecturer or args.lecturers
+    ):
+        parser.error("--dstart/--dend ma sens tylko razem z --lecturer, --lecturers albo --list-lecturers")
+
+    if args.dstart is not None and args.dend is not None and args.dstart > args.dend:
+        parser.error("Niepoprawny zakres dat: --dstart nie może być później niż --dend")
+
+    if args.file is not None:
+        p = Path(args.file)
+        if not p.is_file():
+            parser.error(f"Plik podany w --file nie istnieje lub nie jest plikiem: {p}")
+
+    if args.lecturers is not None:
+        p = Path(args.lecturers)
+        if not p.is_file():
+            parser.error(f"Plik z listą prowadzących nie istnieje: {p}")
+
+
+def _ensure_output_dir() -> Path:
     out_dir = Path(OUTPUT_DIR)
     print(f"Folder dla wyników to: {out_dir}")
     if not out_dir.exists():
@@ -35,45 +100,73 @@ if __name__=='__main__':
         print(f"Katalog '{out_dir}' nie istniał — utworzono.")
     else:
         print(f"Katalog '{out_dir}' istnieje — wyniki zostaną tam zapisane.")
+    return out_dir
 
-    # Zapis CSV
-    try:
-        csv_path = out_dir / 'plan.csv'
-        schedule.save_to_csv(str(csv_path))
-        if csv_path.exists():
-            print(f"Gotowe! Zapisano plik {csv_path}")
-        else:
-            print(f"Coś poszło nie tak: plik '{csv_path}' nie został utworzony.")
-            sys.exit(1)
-    except Exception as e:
-        print("Coś poszło nie tak podczas zapisu CSV:", str(e))
-        traceback.print_exc()
-        sys.exit(1)
 
-    # Zapis ICS
-    try:
-        ics_path = out_dir / 'plan.ics'
-        schedule.save_to_ics(str(ics_path))
-        if ics_path.exists():
-            print(f"Gotowe! Zapisano plik {ics_path}")
-        else:
-            print(f"Coś poszło nie tak: plik '{ics_path}' nie został utworzony.")
-            sys.exit(1)
-    except Exception as e:
-        print("Coś poszło nie tak podczas zapisu ICS:", str(e))
-        traceback.print_exc()
-        sys.exit(1)
+def main(argv: list[str] | None = None) -> int:
+    parser = _build_parser()
+    argv = sys.argv[1:] if argv is None else argv
 
-    # Generowanie raportu grup (generuje 'groups.html' w bieżącym katalogu) -> przenosimy do OUTPUT_DIR
-    try:
-        html_path = out_dir / 'groups.html'
-        schedule.groups_to_html(html_path)
-        if html_path.exists():
-            print(f"Gotowe! Raport z liczby zajęć zapisano do {html_path}")
+    # Requirement: when run without arguments, show help.
+    if not argv:
+        parser.print_help(sys.stdout)
+        return 0
+
+    args = parser.parse_args(argv)
+    _validate_args(parser, args)
+
+    api = API()
+    dr = DateRange(args.dstart, args.dend)
+    print('Zakres dat do pobrania/analizy planu:', dr)
+
+    # Mode: list lecturers
+    if args.list_lecturers:
+        lecturers = api.get_lecturers()
+        for l in lecturers:
+            print(l)
+        return 0
+
+    # Get schedule for lecturer / lecturers
+    if args.lecturer is not None or args.lecturers is not None:
+        lecturer_names = []
+        if args.lecturer is not None:
+            lecturer_names.append(args.lecturer.strip())
         else:
-            print("Coś poszło nie tak: plik 'groups.html' nie został utworzony przez schedule.groups_to_html().")
-            sys.exit(1)
-    except Exception as e:
-        print("Coś poszło nie tak podczas generowania raportu grup:", str(e))
-        traceback.print_exc()
-        sys.exit(1)
+            with open(args.lecturers) as f:
+                for line in f:
+                    name = line.strip()
+                    if name:
+                        lecturer_names.append(name)
+
+        lecturers = api.get_lecturers()
+        selected = [l for l in lecturers if l.full_name() in lecturer_names]
+        not_found = set(lecturer_names) - set(l.full_name() for l in selected)
+        if not_found:
+            print("Nie znaleziono prowadzących o podanych nazwiskach:", ", ".join(not_found), file=sys.stderr)
+            return 1
+
+        for lecturer in selected:
+            print(f"Pobieranie planu dla {lecturer.full_name()}...")
+            schedule = api.get_schedule(lecturer, dr)
+            out_dir = _ensure_output_dir()
+            schedule.export_schedule(out_dir)
+
+        return 0
+
+    # Parse schedule from file
+    if args.file is not None:
+        try:
+            schedule = Schedule(None, args.file)
+            out_dir = _ensure_output_dir()
+            schedule.export_schedule(out_dir)
+            return 0
+        except Exception as e:
+            print("Coś poszło nie tak podczas przetwarzania pliku:", str(e))
+            traceback.print_exc()
+            return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

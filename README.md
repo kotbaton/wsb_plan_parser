@@ -1,269 +1,76 @@
 # Parser planu WSB
 
-## Generator planu zajęć (CSV / ICS / HTML)
+Program służy do przetwarzania pliku JSON z planem zajęć oraz (w kolejnych krokach) do pobierania danych z API Meritogo.
 
-Program służy do przetwarzania pliku `plan.json` (wyeksportowanego z Merito/WSB) i automatycznego wygenerowania:
+Aktualnie narzędzie potrafi wygenerować:
 
-- 📄 `plan.csv` – plan w formacie do Excela
-- 📅 `plan.ics` – kalendarz do importu (Google Calendar, Outlook itp.)
-- 📊 `grupy.html` – raport godzin dla Moodle (z podsumowaniem godzin)
+- `output/plan.csv` – plan w formacie do Excela
+- `output/plan.ics` – kalendarz do importu (Google Calendar, Outlook itp.)
+- `output/groups.html` – raport godzin dla Moodle (z podsumowaniem godzin)
 
 ## Instalacja
 
 1. Sklonuj repozytorium:
+
 ```bash
 git clone https://github.com/kotbaton/wsb_plan_parser.git
-````
-
-2. Przejdź do katalogu projektu:
-```bash
-cd nazwa_repozytorium
 ```
 
-## Jak użyć programu
-
-1. Umieść plik `plan.json` w tym samym folderze co skrypt. Na końcu pliku README znajdziesz instrukcję, jak wyeksportować plan z Merito/WSB.
-2. Uruchom program:
-    ```bash
-    python main.py
-    ```
-   lub, jeżeli masz plik o innej nazwie:
-    ```bash
-    python main.py sciezka/do/plik.json
-    ```
-3. Po zakończeniu działania w folderze `output/` w katalogu projektu pojawią się pliki:
-- `plan.csv`
-- `plan.ics`
-- `grupy.html`
-
-Skrypt sprawdza, czy katalog `output` istnieje i w razie potrzeby go tworzy.
-
-## Opis programu
-
-Krótki opis głównych plików w repozytorium:
-
-- `main.py` — główny skrypt uruchamiający program: parsuje argument CLI (opcjonalna ścieżka do pliku JSON), tworzy katalog `output` jeśli trzeba i wywołuje kolejne kroki (wczytanie planu, zapis CSV, zapis ICS, generowanie raportu HTML).
-- `event.py` — definicja klasy `Event`: reprezentuje pojedyncze zajęcia, oblicza długość w godzinach akademickich, przechowuje informacje pomocnicze oraz potrafi wygenerować wpisy CSV i ICS.
-- `schedule.py` — klasa `Schedule`: parsuje plik JSON z planem, tworzy listę obiektów `Event`, grupuje zajęcia według przedmiotu/grupy i udostępnia metody zapisu do plików (`save_to_csv`, `save_to_ics`, `groups_to_html`).
-- `plan_example.json` — przykładowy plik JSON (wzorzec) pokazujący oczekiwaną strukturę `plan.json` używaną przez skrypt.
-
-## Opis generowanych plików
-
-### 📄 plan.csv
-Zawiera:
-- datę
-- dzień tygodnia
-- godzinę rozpoczęcia i zakończenia
-- długość zajęć (w godzinach akademickich)
-- salę
-- nazwę przedmiotu
-- grupę
-
-Można otworzyć w Excelu lub LibreOffice.
-
-### 📅 plan.ics
-Plik do importu do kalendarza.
-Zawiera:
-- poprawną strefę czasową Europe/Warsaw
-- opis z informacją o:
-- grupie
-- liczbie zrealizowanych godzin
-- opisie zajęć
-- prowadzącym
-
-Można zaimportować do:
-- Google Calendar
-- Outlook
-- Apple Calendar
-
-### 📊 grupy.html
-Raport godzin do wklejenia do Moodle.
-
-Dla każdej grupy generowana jest tabela zawierająca:
-- datę
-- godzinę rozpoczęcia i zakończenia
-- dzień tygodnia
-- długość zajęć
-- postęp godzin (np. 6/30)
-
-Każda grupa oddzielona jest linią:
-```html
-=================================
-```
-
-Plik można:
-- otworzyć w przeglądarce
-- skopiować i wkleić do Moodle (tryb HTML)
-
-# Eksport planu z WSB (Merito)
-
-Poniżej znajduje się instrukcja krok po kroku, jak wyeksportować plan zajęć w formacie JSON z serwisu https://meritogo.pl.
-
-## 🔵 Wersja dla Firefox
-
-### 1. Wejście na stronę
-- Otwórz stronę: https://meritogo.pl  
-- Jeżeli jesteś zalogowany, przejdź do kroku 2. Jeśli nie - na razie się nie loguj.
-
-### 2. Otwórz narzędzia deweloperskie
-- Naciśnij `F12`
-- Przejdź do zakładki **Network**
-
-Zakładka Network pozwala śledzić zapytania (requesty) wysyłane do serwera.
-
-### 3. Zaloguj się
-- Zaloguj się normalnie do systemu, lub jeśli masz już sesję, odśwież stronę (`F5`).
-- Po zalogowaniu pojawi się dużo requestów w zakładce Network
-
-### 4. Znajdź zapytanie z planem
-- Wyszukaj request typu **GET**
-- Szukaj adresu zawierającego:
-
-  lecturer?dateFrom=
-
-- Kliknij w ten request
-- Sprawdź zakładkę **Response**
-
-Jeżeli w Response widzisz dane planu w formacie JSON — to jest właściwe zapytanie.  
-Jeżeli nie — szukaj dalej.
-
-### 5. Wyślij zapytanie ponownie z inną datą
-- Po znalezieniu właściwego requestu:
-  - Przejdź do zakładki **Headers**
-  - Znajdź przycisk **Resend**
-
-- W oknie, które się otworzy:
-  - Zmień zakres dat (`dateFrom`, `dateTo`) na interesujący Cię
-  - Kliknij **Send**
-
-### 6. Pobierz wynik
-- Nowy request pojawi się na końcu listy
-- W zakładce **Response** znajdziesz pełny plan w formacie JSON
-- Skopiuj dane do pliku i zapisz jako `plan.json` w folderze ze skryptem
-
-## 🟢 Wersja dla Chromium / Chrome
-
-### 1. Wejście na stronę
-- Otwórz: https://meritogo.pl  
-- Jeżeli jesteś zalogowany, przejdź do kroku 2. Jeśli nie - na razie się nie loguj.
-
-### 2. Otwórz DevTools
-- Naciśnij `F12`
-- Przejdź do zakładki **Network**
-
-### 3. Zaloguj się
-- Zaloguj się normalnie do systemu, lub jeśli masz już sesję, odśwież stronę (`F5`).
-- W Network pojawi się wiele requestów
-
-### 4. Znajdź właściwy request
-- Szukaj zapytania **GET**
-- Adres powinien zawierać:
-
-  lecturer?dateFrom=
-
-- Sprawdź w zakładce **Response**, czy zawiera plan (JSON)
-
-Jeżeli nie — znajdź inne zapytanie.
-
-### 5. Skopiuj request jako cURL
-- Kliknij prawym przyciskiem myszy na właściwy request
-- Wybierz:
-
-  Copy → Copy as cURL
-
-### 6. Uruchom w terminalu
-- Wklej skopiowane polecenie do:
-  - PowerShell
-  - Terminala
-  - CMD (jeśli masz curl)
-
-- Zmodyfikuj parametry:
-  dateFrom=
-  dateTo=
-
-### 7. Pobierz plan jako plik
-
-Możesz od razu zapisać wynik do pliku:
-
-curl (tu całe polecenie) > plan.json
-
-Po wykonaniu polecenia otrzymasz plik `plan.json` zawierający cały plan zajęć.
-
-## Wersja Uniwersalna (curl – niezależna od przeglądarki)
-
-Ta metoda pozwala pobrać plan bez używania funkcji „Resend” w przeglądarce.  
-Wymaga jednak ręcznego znalezienia **dwóch wartości** w zakładce Network:
-
-- `authorization` (Bearer token)
-- `context-id`
-
-Działa w większości przypadków, ale token może wygasać (np. po wylogowaniu).
-
-### Krok 1 – Zaloguj się i znajdź request
-
-1. Wejdź na https://meritogo.pl  
-2. Otwórz DevTools (`F12`)  
-3. Przejdź do zakładki **Network**  
-4. Zaloguj się normalnie  
-5. Znajdź request typu **GET**, którego adres zawiera `lecturer?dateFrom=`
-
-6. Kliknij ten request i przejdź do zakładki **Headers**
-
-### Krok 2 – Skopiuj wymagane wartości
-
-W sekcji **Request Headers** znajdź:
-
-- `authorization: Bearer ......`
-- `context-id: ......`
-
-Skopiuj:
-
-- cały token po słowie `Bearer`
-- wartość `context-id`
-
-### Krok 3 – Wstaw dane do polecenia curl
-
-W poniższym poleceniu:
-
-- wstaw swój token w miejsce `TUTAJ_WPISZ_SWÓJ_TOKEN`
-- wstaw swój `context-id` w miejsce `TUTAJ_WPISZ_SWOJE_CONTEXT_ID`
-- opcjonalnie zmień zakres dat (`dateFrom`, `dateTo`)
+2. Wejdź do katalogu projektu i zainstaluj zależności:
 
 ```bash
-curl 'https://api.meritogo.pl/v2/class_schedule/v3/schedule/lecturer?dateFrom=2026-02-28&dateTo=2026-10-31&categoryNames=CLASS_SCHEDULE,STUDY,OFFICE_HOURS,EVENTS' \
-  -H 'accept: application/json, text/plain, */*' \
-  -H 'accept-language: pl_PL' \
-  -H 'authorization: Bearer TUTAJ_WPISZ_SWÓJ_TOKEN' \
-  -H 'context-id: TUTAJ_WPISZ_SWOJE_CONTEXT_ID' \
-  -H 'impersonification-id;' \
-  -H 'origin: https://meritogo.pl' \
-  -H 'priority: u=1, i' \
-  -H 'referer: https://meritogo.pl/' \
-  -H 'sec-ch-ua: "Chromium";v="145", "Not:A-Brand";v="99"' \
-  -H 'sec-ch-ua-mobile: ?0' \
-  -H 'sec-ch-ua-platform: "Linux"' \
-  -H 'sec-fetch-dest: empty' \
-  -H 'sec-fetch-mode: cors' \
-  -H 'sec-fetch-site: same-site' \
-  -H 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36' \
-  -H 'x-timezone: Europe/Warsaw' > plan.json
+pip install -r requirements.txt
 ```
 
-### Krok 4 – Uruchom polecenie
+## Konfiguracja tokenów API (.env)
 
-Wklej komendę do:
-- PowerShell (Windows 10/11 ma curl domyślnie)
-- Terminal (Linux/macOS)
-- Git Bash
+Aplikacja wymaga tokenów, żeby utworzyć obiekt `API`.
 
-Po wykonaniu polecenia powstanie plik:
+1. Utwórz plik `.env` w katalogu projektu:
+
+```dotenv
+CONTEXT_ID=twoj_context_id
+BEARER_TOKEN="Bearer twoj_token"
+```
+
+2. Jak zdobyć tokeny z `meritogo.pl` (po zalogowaniu):
+
+- Otwórz `https://meritogo.pl` i zaloguj się.
+- Otwórz narzędzia developerskie (DevTools) → zakładka **Network**.
+- Znajdź zapytanie (request) do API (zwykle `GET`) – praktycznie dowolne, które idzie do `api.meritogo.pl`.
+- Kliknij request i wejdź w **Headers**.
+- Skopiuj wartości:
+  - `context-id: ...` → wklej do `CONTEXT_ID`
+  - `authorization: Bearer ...` → wklej CAŁĄ wartość (razem z `Bearer`) do `BEARER_TOKEN`
+
+Uwaga: token `authorization` jest tymczasowy i może wygasnąć – wtedy trzeba pobrać nowy.
+
+## Jak użyć programu (CLI)
+
+Program używa `argparse`.
+
+- Uruchomienie bez argumentów wyświetla pomoc:
+
 ```bash
-plan.json
+python main.py
 ```
-Zawiera on pełny plan zajęć w formacie JSON.
 
-### Ważne informacje
+- Przetworzenie lokalnego pliku JSON (działa jak dawniej, ale teraz przez `--file`):
 
-- Token `authorization` jest tymczasowy – po wylogowaniu lub po czasie może przestać działać.
-- Jeśli otrzymasz błąd 401/403 – pobierz nowy token z Network.
-- Nie udostępniaj swojego tokena innym osobom.
+```bash
+python main.py --file plan.json
+```
+
+### Przełączniki
+
+- `--list-lecturers` – wyświetla dostępnych prowadzących i kończy działanie
+- `--lecturer "Imię Nazwisko"` – plan dla konkretnego prowadzącego
+- `--lecturers file.txt` – plan dla prowadzących z pliku
+- `--dstart YYYY-MM-DD` / `--dend YYYY-MM-DD` – opcjonalny zakres dat (używany z opcjami powyżej)
+
+## Struktura projektu
+
+- `main.py` — CLI (argparse), wczytanie `.env`, utworzenie `API`, eksport plików.
+- `wsbparser/schedule.py` — parsowanie pliku JSON i eksport do CSV/ICS/HTML.
+- `wsbparser/event.py` — model pojedynczych zajęć i generowanie wpisów CSV/ICS.
+- `wsbparser/api.py` — komunikacja z API Meritogo + cache odpowiedzi (np. `json/lecturers.json`).
