@@ -1,12 +1,13 @@
 from datetime import date
 import logging
+import re
 
 from .api import API
 from .daterange import DateRange
 
 
-TABLE_HEADERS = ("Od", "Do", "Forma", "Przedmiot", "Sala", "Prowadzący")
-TABLE_MAX_WIDTHS = (5, 5, 8, 40, 18, 35)
+TABLE_HEADERS = ("Od", "Do", "Sala", "Forma", "Przedmiot", "Grupy", "Prowadzący")
+TABLE_MAX_WIDTHS = (5, 5, 18, 8, 36, 50, 30)
 logger = logging.getLogger(__name__)
 
 
@@ -19,6 +20,10 @@ def build_group_fetch_range(selected_date: date, dstart: date | None, dend: date
 def _event_matches_group(event, group_name: str) -> bool:
     wanted = group_name.strip().casefold()
     return any(group.casefold() == wanted for group in event.groups)
+
+
+def _event_matches_group_regex(event, pattern) -> bool:
+    return any(pattern.fullmatch(group) for group in event.groups)
 
 
 def _event_dedupe_key(event) -> tuple:
@@ -49,13 +54,14 @@ def _event_room_label(event) -> str:
     return event.rooms or event.location or "-"
 
 
-def _table_row(event) -> tuple[str, str, str, str, str, str]:
+def _table_row(event) -> tuple[str, str, str, str, str, str, str]:
     return (
         event.dtstart.strftime("%H:%M"),
         event.dtend.strftime("%H:%M"),
+        _event_room_label(event),
         event.form or "-",
         event.name,
-        _event_room_label(event),
+        ", ".join(event.groups) if event.groups else "-",
         event.lecturers or "-",
     )
 
@@ -84,6 +90,7 @@ def print_group_schedule(
     group_name: str,
     selected_date: date,
     fetch_range: DateRange,
+    regex: bool = False,
     force_refresh: bool = False,
 ) -> int:
     logger.info("Zakres dat do pobrania/analizy planu: %s", fetch_range)
@@ -114,10 +121,12 @@ def print_group_schedule(
             logger.debug("Szczegóły błędu podczas analizy planu grupy.", exc_info=True)
             continue
 
+        pattern = re.compile(group_name, re.IGNORECASE) if regex else None
         for event in schedule.events:
             if event.dtstart.date() != selected_date:
                 continue
-            if not _event_matches_group(event, group_name):
+            if ((not _event_matches_group(event, group_name))
+                    and (regex and not _event_matches_group_regex(event, pattern))):
                 continue
 
             dedupe_key = _event_dedupe_key(event)

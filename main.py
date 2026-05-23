@@ -90,6 +90,11 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
     )
     parser.add_argument(
+        "--regex",
+        action="store_true",
+        help="Powoduje, że podana nazwa grupy będzie traktowana jako wyrażenie regularne przy wyszukiwaniu zajęć.",
+    )
+    parser.add_argument(
         "--refresh",
         action="store_true",
         help="Wymusza ponowne pobranie danych z API zamiast użycia lokalnego cache JSON.",
@@ -207,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.group.strip(),
                 selected_date,
                 fetch_range,
+                regex=args.regex,
                 force_refresh=args.refresh,
             )
 
