@@ -4,7 +4,7 @@ import math
 from datetime import datetime, UTC
 
 
-DAY_MAP = ["Pn", "Wt", "Śr", "Cz", "Pt", "Sb", "Nd"]
+DAY_MAP: tuple[str, ...] = ("Pn", "Wt", "Śr", "Cz", "Pt", "Sb", "Nd")
 WARSAW = ZoneInfo("Europe/Warsaw")
 
 
@@ -32,7 +32,7 @@ class Event:
             self.location = 'Zd'
             self.rooms = 'Zd'
         self.form = event["classFormShortName"]  # Empty or form
-        self.groups = ' '.join(event["groups"])  # Empty or groups
+        self.groups = tuple(event["groups"])  # Empty or groups
         self.lecturers = ' '.join(l["fullName"] for l in event["lecturers"])
 
     def __str__(self):
@@ -49,17 +49,17 @@ Lecturers: {self.lecturers}"""
         return ["Date", "Day", "Start Time", "End Time", "Duration", "Location", "Subject", "Groups"]
 
     def to_csv_entry(self):
-        date = self.dtstart.date()
+        event_date = self.dtstart.date()
         day = DAY_MAP[self.dtstart.weekday()]
         start_time = self.dtstart.strftime("%H:%M")
         end_time = self.dtend.strftime("%H:%M")
         location = f'{self.rooms}'
         subject = f'({self.form}) {self.name}' if self.form else self.name
-        return date, day, start_time, end_time, self.duration, location, subject, self.groups
+        return event_date, day, start_time, end_time, self.duration, location, subject, ' '.join(self.groups)
 
     def to_ics_entry(self):
         summary = f'({self.form}) {self.name} {self.rooms}' if self.form else self.name
-        description = f"""Grupa: {self.groups}
+        description = f"""Grupa: {' '.join(self.groups)}
  \\nGodziny: {self.cumulative_hours}/{self.total_hours}
  \\nOpis: {self.description if self.description else 'brak'}
  \\nProwadzący: {self.lecturers}"""

@@ -95,24 +95,87 @@ class API:
         response = requests.get(url, headers=self.headers)
         self._check_and_write(response, cache_file)
 
-
-    def get_schedule(self, lecturer: Lecturer, dr: DateRange, force_refresh: bool = False):
+    def _schedule_cache_file(self, lecturer: Lecturer, dr: DateRange) -> Path:
         login = lecturer.login()
-        cache_file = self.json_dir / f"{login}_schedule_{dr}.json"
+        return self.json_dir / f"{login}_schedule_{dr}.json"
 
-        if not cache_file.exists() and not force_refresh:
+    def _parse_schedule_cache_range(self, lecturer: Lecturer, cache_file: Path) -> DateRange | None:
+        prefix = f"{lecturer.login()}_schedule_"
+        suffix = ".json"
+        filename = cache_file.name
+
+        if not filename.startswith(prefix) or not filename.endswith(suffix):
+            return None
+
+        range_part = filename[len(prefix):-len(suffix)]
+        if "_" not in range_part:
+            return None
+
+        start_text, end_text = range_part.split("_", 1)
+        try:
+            return DateRange(start_text, end_text)
+        except (TypeError, ValueError):
+            return None
+
+    def find_schedule_cache_covering_range(self, lecturer: Lecturer, dr: DateRange) -> Path | None:
+        pattern = f"{lecturer.login()}_schedule_*.json"
+        matching_cache_files = []
+
+        for cache_file in self.json_dir.glob(pattern):
+            cache_range = self._parse_schedule_cache_range(lecturer, cache_file)
+            if cache_range is None:
+                continue
+            if cache_range.start <= dr.start and cache_range.end >= dr.end:
+                cache_span_days = (cache_range.end - cache_range.start).days
+                matching_cache_files.append((cache_span_days, cache_range.start, cache_file))
+
+        if not matching_cache_files:
+            return None
+
+        matching_cache_files.sort(key=lambda item: (item[0], item[1], item[2].name))
+        return matching_cache_files[0][2]
+
+
+    def get_schedule(
+        self,
+        lecturer: Lecturer,
+        dr: DateRange,
+        force_refresh: bool = False,
+        allow_covering_cache: bool = False,
+    ):
+        requested_cache_file = self._schedule_cache_file(lecturer, dr)
+        cache_file = requested_cache_file
+        used_covering_cache = False
+
+        if not force_refresh and allow_covering_cache:
+            covering_cache_file = self.find_schedule_cache_covering_range(lecturer, dr)
+            if covering_cache_file is not None:
+                cache_file = covering_cache_file
+                used_covering_cache = cache_file != requested_cache_file
+                print(f"Używanie danych o planie z cache pokrywającego zakres {dr}: {cache_file}")
+
+        should_fetch = force_refresh or not cache_file.exists()
+
+        if should_fetch:
             try:
                 print("Pobieranie danych o planie z API...")
                 # ensure directory exists
                 self.json_dir.mkdir(parents=True, exist_ok=True)
+                cache_file = requested_cache_file
                 self.fetch_schedule(lecturer, dr, cache_file)
             except Exception as e:
-                print(f"Pobieranie danych nie powiodło się: {e}")
-                exit(1)
-        else:
+                raise RuntimeError(
+                    f"Pobieranie planu dla {lecturer.full_name()} nie powiodło się: {e}"
+                ) from e
+        elif not used_covering_cache:
             print(f"Używanie danych o planie z cache: {cache_file}")
 
-        return Schedule(lecturer, cache_file)
+        try:
+            return Schedule(lecturer, cache_file)
+        except SystemExit as e:
+            raise RuntimeError(
+                f"Nie udało się wczytać planu dla {lecturer.full_name()} z pliku {cache_file}"
+            ) from e
 
 
     def get_lecturers(self, force_refresh: bool = False):

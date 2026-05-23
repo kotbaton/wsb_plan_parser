@@ -1,76 +1,200 @@
 # Parser planu WSB
 
-Program służy do przetwarzania pliku JSON z planem zajęć oraz (w kolejnych krokach) do pobierania danych z API Meritogo.
+Narzędzie do:
 
-Aktualnie narzędzie potrafi wygenerować:
-
-- `output/plan.csv` – plan w formacie do Excela
-- `output/plan.ics` – kalendarz do importu (Google Calendar, Outlook itp.)
-- `output/groups.html` – raport godzin dla Moodle (z podsumowaniem godzin)
+- przetwarzania lokalnego pliku JSON z planem,
+- pobierania planów prowadzących z API Meritogo,
+- eksportu planu do `CSV`, `ICS` i `HTML`,
+- sprawdzania planu grupy w wybranym dniu,
+- sprawdzania zajętości sali w wybranym dniu.
 
 ## Instalacja
-
-1. Sklonuj repozytorium:
-
-```bash
-git clone https://github.com/kotbaton/wsb_plan_parser.git
-```
-
-2. Wejdź do katalogu projektu i zainstaluj zależności:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Konfiguracja tokenów API (.env)
+## Konfiguracja `.env`
 
-Aplikacja wymaga tokenów, żeby utworzyć obiekt `API`.
+Aplikacja potrzebuje dwóch tokenów, żeby utworzyć obiekt `API`.
 
-1. Utwórz plik `.env` w katalogu projektu:
+Utwórz plik `.env` w katalogu projektu:
 
 ```dotenv
 CONTEXT_ID=twoj_context_id
 BEARER_TOKEN="Bearer twoj_token"
 ```
 
-2. Jak zdobyć tokeny z `meritogo.pl` (po zalogowaniu):
+### Jak pozyskać tokeny
 
-- Otwórz `https://meritogo.pl` i zaloguj się.
-- Otwórz narzędzia developerskie (DevTools) → zakładka **Network**.
-- Znajdź zapytanie (request) do API (zwykle `GET`) – praktycznie dowolne, które idzie do `api.meritogo.pl`.
-- Kliknij request i wejdź w **Headers**.
-- Skopiuj wartości:
-  - `context-id: ...` → wklej do `CONTEXT_ID`
-  - `authorization: Bearer ...` → wklej CAŁĄ wartość (razem z `Bearer`) do `BEARER_TOKEN`
+Po zalogowaniu na `https://meritogo.pl`:
 
-Uwaga: token `authorization` jest tymczasowy i może wygasnąć – wtedy trzeba pobrać nowy.
+1. otwórz narzędzia developerskie przeglądarki,
+2. przejdź do zakładki **Network**,
+3. wybierz dowolny request do `api.meritogo.pl`,
+4. w zakładce **Headers** odczytaj:
+   - `context-id` → wpisz do `CONTEXT_ID`,
+   - `authorization` → wpisz całą wartość do `BEARER_TOKEN` razem z prefiksem `Bearer`.
 
-## Jak użyć programu (CLI)
+Uwaga: token `authorization` może wygasnąć. W takim przypadku trzeba pobrać go ponownie.
 
-Program używa `argparse`.
+## Uruchomienie
 
-- Uruchomienie bez argumentów wyświetla pomoc:
+Uruchomienie bez argumentów pokazuje pomoc:
 
 ```bash
 python main.py
 ```
 
-- Przetworzenie lokalnego pliku JSON (działa jak dawniej, ale teraz przez `--file`):
+Pomoc można też wyświetlić jawnie:
+
+```bash
+python main.py --help
+```
+
+## Tryby działania CLI
+
+### 1. Przetwarzanie lokalnego pliku JSON
 
 ```bash
 python main.py --file plan.json
 ```
 
-### Przełączniki
+Generowane pliki trafiają do katalogu `output/`:
 
-- `--list-lecturers` – wyświetla dostępnych prowadzących i kończy działanie
-- `--lecturer "Imię Nazwisko"` – plan dla konkretnego prowadzącego
-- `--lecturers file.txt` – plan dla prowadzących z pliku
-- `--dstart YYYY-MM-DD` / `--dend YYYY-MM-DD` – opcjonalny zakres dat (używany z opcjami powyżej)
+- `*.csv`
+- `*.ics`
+- `*.html`
+
+### 2. Lista prowadzących
+
+```bash
+python main.py --list-lecturers
+```
+
+### 3. Pobranie planu jednego prowadzącego
+
+```bash
+python main.py --lecturer "Imię Nazwisko"
+```
+
+Z opcjonalnym zakresem dat:
+
+```bash
+python main.py --lecturer "Imię Nazwisko" --dstart 2026-05-01 --dend 2026-05-31
+```
+
+### 4. Pobranie planu wielu prowadzących z pliku
+
+```bash
+python main.py --lecturers file.txt
+```
+
+Plik `file.txt` powinien zawierać po jednym prowadzącym w każdej linii, np.:
+
+```text
+Jan Kowalski
+Anna Nowak
+```
+
+### 5. Sprawdzenie planu grupy
+
+```bash
+python main.py --group "Nazwa Grupy"
+```
+
+Domyślnie używana jest dzisiejsza data.
+
+Z podaniem konkretnego dnia:
+
+```bash
+python main.py --group "Nazwa Grupy" --date 2026-05-23
+```
+
+Z przygotowaniem cache na szerszy zakres dat:
+
+```bash
+python main.py --group "Nazwa Grupy" --date 2026-05-23 --dstart 2026-05-20 --dend 2026-05-31
+```
+
+Wynik jest wypisywany w formie tabeli w terminalu.
+
+### 6. Sprawdzenie zajętości sali
+
+```bash
+python main.py --room "ŚN 7"
+```
+
+Domyślnie używana jest dzisiejsza data.
+
+Z podaniem konkretnego dnia:
+
+```bash
+python main.py --room "ŚN 7" --date 2026-05-23
+```
+
+Z przygotowaniem cache na szerszy zakres dat:
+
+```bash
+python main.py --room "ŚN 7" --date 2026-05-23 --dstart 2026-05-20 --dend 2026-05-31
+```
+
+Jeżeli w danym dniu nie ma żadnych zajęć w tej sali, program wypisze informację, że sala jest wolna.
+
+## Cache i `--refresh`
+
+Odpowiedzi API są zapisywane w katalogu `json/`.
+
+### Lista prowadzących
+
+- lista prowadzących jest cache’owana w `json/lecturers.json`,
+- jeśli plik istnieje, program użyje go ponownie,
+- przy pobraniu z cache pojawia się komunikat informujący o użyciu lokalnego pliku.
+
+### Tryby `--group` i `--room`
+
+W tych trybach program sprawdza plany wszystkich prowadzących po kolei.
+
+Zachowanie cache:
+
+- jeśli istnieje cache pokrywający wybraną datę lub żądany zakres, program użyje go bez pobierania danych ponownie,
+- jeśli cache nie pokrywa potrzebnego zakresu, program pobierze brakujące dane z API,
+- jeśli podasz `--refresh`, dane zostaną pobrane ponownie niezależnie od istniejącego cache.
+
+Przykład:
+
+- istnieje cache od `2026-05-01` do `2026-07-31`,
+- uruchamiasz `--group` albo `--room` dla daty `2026-06-15`,
+- program użyje istniejącego cache i nie pobierze danych od nowa.
+
+### Wymuszenie ponownego pobrania
+
+```bash
+python main.py --group "Nazwa Grupy" --date 2026-05-23 --refresh
+python main.py --room "ŚN 7" --date 2026-05-23 --refresh
+python main.py --lecturer "Imię Nazwisko" --refresh
+```
+
+## Najważniejsze przełączniki
+
+- `--file PATH` – przetworzenie lokalnego pliku JSON,
+- `--list-lecturers` – wypisanie wszystkich prowadzących,
+- `--lecturer "Imię Nazwisko"` – pobranie planu jednego prowadzącego,
+- `--lecturers file.txt` – pobranie planów prowadzących z pliku,
+- `--group "Nazwa Grupy"` – sprawdzenie planu grupy na wybrany dzień,
+- `--room "ŚN 7"` – sprawdzenie zajętości sali na wybrany dzień,
+- `--date YYYY-MM-DD` – dzień używany z `--group` albo `--room`,
+- `--dstart YYYY-MM-DD` – początek zakresu pobierania/cache,
+- `--dend YYYY-MM-DD` – koniec zakresu pobierania/cache,
+- `--refresh` – wymuszenie ponownego pobrania danych z API.
 
 ## Struktura projektu
 
-- `main.py` — CLI (argparse), wczytanie `.env`, utworzenie `API`, eksport plików.
-- `wsbparser/schedule.py` — parsowanie pliku JSON i eksport do CSV/ICS/HTML.
-- `wsbparser/event.py` — model pojedynczych zajęć i generowanie wpisów CSV/ICS.
-- `wsbparser/api.py` — komunikacja z API Meritogo + cache odpowiedzi (np. `json/lecturers.json`).
+- `main.py` — główne CLI oparte o `argparse`,
+- `wsbparser/api.py` — komunikacja z API Meritogo i obsługa cache,
+- `wsbparser/schedule.py` — parsowanie planu i eksport do `CSV` / `ICS` / `HTML`,
+- `wsbparser/event.py` — model pojedynczych zajęć,
+- `wsbparser/group_schedule.py` — logika sprawdzania planu grupy,
+- `wsbparser/room_schedule.py` — logika sprawdzania zajętości sal,
+- `json/` — lokalny cache danych z API,
+- `output/` — wygenerowane pliki wynikowe.
