@@ -52,6 +52,21 @@ Pomoc można też wyświetlić jawnie:
 python main.py --help
 ```
 
+## Logowanie i poziom szczegółowości
+
+Domyślnie program pokazuje tylko wynik końcowy oraz ostrzeżenia i błędy.
+
+Jeżeli chcesz zobaczyć komunikaty pośrednie albo diagnostyczne, użyj przełącznika `--verbose` z poziomem liczbowym:
+
+```bash
+python main.py --file plan.json --verbose 1
+python main.py --file plan.json --verbose 2
+```
+
+- `--verbose 0` – tylko wynik końcowy oraz ostrzeżenia/błędy,
+- `--verbose 1` – dodatkowo komunikaty pośrednie, np. użycie cache lub tworzenie katalogu `output/`,
+- `--verbose 2` – dodatkowo komunikaty diagnostyczne, np. postęp sprawdzania kolejnych prowadzących.
+
 ## Tryby działania CLI
 
 ### 1. Przetwarzanie lokalnego pliku JSON
@@ -149,7 +164,7 @@ Odpowiedzi API są zapisywane w katalogu `json/`.
 
 - lista prowadzących jest cache’owana w `json/lecturers.json`,
 - jeśli plik istnieje, program użyje go ponownie,
-- przy pobraniu z cache pojawia się komunikat informujący o użyciu lokalnego pliku.
+- przy `--verbose 1` pojawia się komunikat informujący o użyciu lokalnego pliku.
 
 ### Tryby `--group` i `--room`
 
@@ -159,7 +174,8 @@ Zachowanie cache:
 
 - jeśli istnieje cache pokrywający wybraną datę lub żądany zakres, program użyje go bez pobierania danych ponownie,
 - jeśli cache nie pokrywa potrzebnego zakresu, program pobierze brakujące dane z API,
-- jeśli podasz `--refresh`, dane zostaną pobrane ponownie niezależnie od istniejącego cache.
+- jeśli podasz `--refresh`, dane zostaną pobrane ponownie niezależnie od istniejącego cache,
+- komunikaty o użyciu cache i pobieraniu z API są widoczne przy `--verbose 1`, a szczegółowy postęp sprawdzania wszystkich prowadzących przy `--verbose 2`.
 
 Przykład:
 
@@ -187,6 +203,7 @@ python main.py --lecturer "Imię Nazwisko" --refresh
 - `--dstart YYYY-MM-DD` – początek zakresu pobierania/cache,
 - `--dend YYYY-MM-DD` – koniec zakresu pobierania/cache,
 - `--refresh` – wymuszenie ponownego pobrania danych z API.
+- `--verbose LEVEL` – poziom logowania (`0`, `1`, `2+`).
 
 ## Struktura projektu
 

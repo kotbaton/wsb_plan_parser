@@ -1,12 +1,16 @@
-import requests
 import json
-from pathlib import Path
+import logging
 import os
+from pathlib import Path
+
+import requests
 from dotenv import load_dotenv
 
 from . import Schedule
-from .lecturer import Lecturer
 from .daterange import DateRange
+from .lecturer import Lecturer
+
+logger = logging.getLogger(__name__)
 
 class API:
     def __init__(self, json_dir="json"):
@@ -71,6 +75,7 @@ class API:
         # Zapis do pliku
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=4)
+        logger.debug("Zapisano odpowiedź API do %s", filename)
 
     def fetch_lecturers(self):
         """Fetch lecturers from remote API and save to json_dir/lecturers.json.
@@ -152,13 +157,13 @@ class API:
             if covering_cache_file is not None:
                 cache_file = covering_cache_file
                 used_covering_cache = cache_file != requested_cache_file
-                print(f"Używanie danych o planie z cache pokrywającego zakres {dr}: {cache_file}")
+                logger.info("Używanie danych o planie z cache pokrywającego zakres %s: %s", dr, cache_file)
 
         should_fetch = force_refresh or not cache_file.exists()
 
         if should_fetch:
             try:
-                print("Pobieranie danych o planie z API...")
+                logger.info("Pobieranie danych o planie z API...")
                 # ensure directory exists
                 self.json_dir.mkdir(parents=True, exist_ok=True)
                 cache_file = requested_cache_file
@@ -168,11 +173,11 @@ class API:
                     f"Pobieranie planu dla {lecturer.full_name()} nie powiodło się: {e}"
                 ) from e
         elif not used_covering_cache:
-            print(f"Używanie danych o planie z cache: {cache_file}")
+            logger.info("Używanie danych o planie z cache: %s", cache_file)
 
         try:
             return Schedule(lecturer, cache_file)
-        except SystemExit as e:
+        except RuntimeError as e:
             raise RuntimeError(
                 f"Nie udało się wczytać planu dla {lecturer.full_name()} z pliku {cache_file}"
             ) from e
@@ -180,18 +185,18 @@ class API:
 
     def get_lecturers(self, force_refresh: bool = False):
         cache_file = self.json_dir / "lecturers.json"
+        should_fetch = force_refresh or not cache_file.exists()
 
-        if not cache_file.exists() and not force_refresh:
+        if should_fetch:
             try:
-                print("Pobieranie danych o wykładowcach z API... (może potrwać kilka sekund)")
+                logger.info("Pobieranie danych o wykładowcach z API... (może potrwać kilka sekund)")
                 # ensure directory exists
                 self.json_dir.mkdir(parents=True, exist_ok=True)
                 self.fetch_lecturers()
             except Exception as e:
-                print(f"Pobieranie danych nie powiodło się: {e}")
-                exit(1)
+                raise RuntimeError(f"Pobieranie danych o wykładowcach nie powiodło się: {e}") from e
         else:
-            print(f"Używanie danych o wykładowcach z cache: {cache_file}")
+            logger.info("Używanie danych o wykładowcach z cache: %s", cache_file)
 
         # after fetch, read and return
         with open(cache_file, "r", encoding="utf-8") as f:

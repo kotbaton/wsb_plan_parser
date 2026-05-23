@@ -1,5 +1,5 @@
 from datetime import date
-import sys
+import logging
 
 from .api import API
 from .daterange import DateRange
@@ -7,6 +7,7 @@ from .daterange import DateRange
 
 TABLE_HEADERS = ("Od", "Do", "Sala", "Forma", "Przedmiot", "Grupy", "Prowadzący")
 TABLE_MAX_WIDTHS = (5, 5, 18, 8, 36, 24, 30)
+logger = logging.getLogger(__name__)
 
 
 def build_room_fetch_range(selected_date: date, dstart: date | None, dend: date | None) -> DateRange:
@@ -106,8 +107,8 @@ def print_room_schedule(
     fetch_range: DateRange,
     force_refresh: bool = False,
 ) -> int:
-    print("Zakres dat do pobrania/analizy planu:", fetch_range)
-    print(f"Data wyświetlanej zajętości sali: {selected_date}")
+    logger.info("Zakres dat do pobrania/analizy planu: %s", fetch_range)
+    logger.info("Data wyświetlanej zajętości sali: %s", selected_date)
 
     lecturers = api.get_lecturers(force_refresh=force_refresh)
     matched_events = []
@@ -116,7 +117,7 @@ def print_room_schedule(
 
     n_lecturers = len(lecturers)
     for i, lecturer in enumerate(lecturers, 1):
-        print(f"({i} / {n_lecturers}) Sprawdzanie planu dla {lecturer.full_name()}...")
+        logger.debug("(%s / %s) Sprawdzanie planu dla %s...", i, n_lecturers, lecturer.full_name())
         try:
             schedule = api.get_schedule(
                 lecturer,
@@ -126,10 +127,12 @@ def print_room_schedule(
             )
         except Exception as e:
             skipped_lecturers.append(lecturer.full_name())
-            print(
-                f"Pomijam prowadzącego {lecturer.full_name()}, bo nie udało się pobrać lub wczytać planu: {e}",
-                file=sys.stderr,
+            logger.warning(
+                "Pomijam prowadzącego %s, bo nie udało się pobrać lub wczytać planu: %s",
+                lecturer.full_name(),
+                e,
             )
+            logger.debug("Szczegóły błędu podczas analizy zajętości sali.", exc_info=True)
             continue
 
         for event in schedule.events:
@@ -148,9 +151,9 @@ def print_room_schedule(
     matched_events.sort(key=lambda e: (e.dtstart, e.dtend, e.name))
 
     if skipped_lecturers:
-        print(
-            f"Pominięto {len(skipped_lecturers)} prowadzących z powodu błędów pobierania lub odczytu planu.",
-            file=sys.stderr,
+        logger.warning(
+            "Pominięto %s prowadzących z powodu błędów pobierania lub odczytu planu.",
+            len(skipped_lecturers),
         )
 
     if not matched_events:

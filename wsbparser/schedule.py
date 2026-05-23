@@ -12,12 +12,13 @@ class Schedule:
         self.lecturer = lecturer
         self.file_path = file_path
         try:
-            with open(file_path) as f:
+            with open(file_path, encoding="utf-8") as f:
                 schedule_text = f.read()
                 plan_json = json.loads(schedule_text)
-        except (FileNotFoundError, json.JSONDecodeError):
-            print(f'Plik {file_path} nie został odnaleziony lub nie jest to plik JSON. Kończę pracę.')
-            exit(1)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            raise RuntimeError(
+                f"Plik {file_path} nie został odnaleziony lub nie jest to poprawny plik JSON."
+            ) from e
         self.events, self.groups = Schedule.json_to_events(plan_json)
 
     def to_str(self, n=3):
