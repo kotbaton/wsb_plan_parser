@@ -120,7 +120,7 @@ END:VTIMEZONE
 <td>{event.cumulative_hours}/{event.total_hours}</td>
 <td>...</td>
 </tr>""")
-            table = f"""<strong>{escape(form)} - {escape(name)} - {escape(group)}</strong>
+            table = f"""<strong>{escape(form)} - {escape(name)} - {escape(", ".join(group))}</strong>
 <table border="1" cellpadding="5" cellspacing="0">
 <thead>
 <tr>
